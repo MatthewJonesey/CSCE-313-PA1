@@ -134,8 +134,8 @@ int main (int argc, char *argv[]) {
 		out.close();
 	}
     
-	//Commented out because it messed with submission
-	/*
+
+	
 	filemsg fm(0, 0);
 	string fname = filename;
 	
@@ -147,7 +147,7 @@ int main (int argc, char *argv[]) {
 
 	delete[] buf2;
 
-	*/
+	
 	
 	// closing the channel    
 

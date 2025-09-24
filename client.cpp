@@ -48,16 +48,25 @@ int main (int argc, char *argv[]) {
 	// Giving arguments for the server: './server', '-m' '<val for -m arg>', 'NULL'
 	// fork
 	// In child run execvp using the server arguments
-	
-	pid_t pid = fork();
-	if(!(pid < 0)){
-			char* args[] = {(char*)"./server", (char*)"-m", (char*)to_string(buffer).c_str(), NULL};
-	
-	if (execvp(args[0], args) < 0) {
-		perror("execvp failed");
-		return 1;
-	}
-	}
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child process: run the server
+       
+        // Build argv for exec
+        char* args[4];
+        args[0] = (char*)"./server";
+        args[1] = (char*)"-m";
+        args[2] = (char*) (to_string(buffer)).c_str();
+        args[3] = nullptr;
+
+        if (execvp(args[0], args) < 0) {
+            perror("execvp failed");
+            exit(1);
+        }
+    } else if (pid < 0) {
+        perror("fork failed");
+        exit(1);
+    }
 	
 	
 
@@ -73,9 +82,9 @@ int main (int argc, char *argv[]) {
 	chan.cread(&reply, sizeof(double)); //answer
 	cout << "For person " << p << ", at time " << t << ", the value of ecg " << e << " is " << reply << endl;
 	
-    // sending a non-sense message, you need to change this
+    
 	filemsg fm(0, 0);
-	string fname = "teslkansdlkjflasjdf.dat";
+	string fname = filename;
 	
 	int len = sizeof(filemsg) + (fname.size() + 1);
 	char* buf2 = new char[len];
@@ -86,6 +95,8 @@ int main (int argc, char *argv[]) {
 	delete[] buf2;
 	
 	// closing the channel    
+
+
     MESSAGE_TYPE m = QUIT_MSG;
     chan.cwrite(&m, sizeof(MESSAGE_TYPE));
 

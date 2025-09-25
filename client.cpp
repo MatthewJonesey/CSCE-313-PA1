@@ -29,7 +29,7 @@ int main (int argc, char *argv[]) {
 	int buffer = 257;
 	bool c = false;
 
-	while ((opt = getopt(argc, argv, "p:t:e:f:m:c:")) != -1) {
+	while ((opt = getopt(argc, argv, "p:t:e:f:m:c")) != -1) {
 		switch (opt) {
 			case 'p':
 				p = atoi (optarg);
@@ -47,6 +47,7 @@ int main (int argc, char *argv[]) {
 				buffer = atoi (optarg);
 				break;
 			case 'c':
+
 				c = true;
 				break;
 		}
@@ -62,18 +63,16 @@ int main (int argc, char *argv[]) {
 		if(buffer == 257) {
 			char *args[2];
 			args[0] = (char*)"./server" ;
-			args[1] = nullptr;
+			args[1] = NULL;
 			execvp(args[0], args);
 		}
 		else{
 			string bufstr = to_string(buffer);
 			char* args[4];
-			vector<char> adaptSize(bufstr.begin(), bufstr.end());
-			adaptSize.push_back('\0');
 			args[0] = (char*)"./server";
 			args[1] = (char*)"-m";
-			args[2] = adaptSize.data(); 
-			args[3] = nullptr;
+			args[2] = (char*)bufstr.c_str(); 
+			args[3] = NULL;
 			execvp(args[0], args);
 		}
 	   _exit(1);
@@ -102,17 +101,17 @@ int main (int argc, char *argv[]) {
 	if(p != -1 && t != -1.0 && e != -1 && filename == "") {
 		datamsg x(p, t, e);
 		memcpy(buf, &x, sizeof(datamsg));
-		chan.cwrite(buf, sizeof(datamsg)); // question
-		double reply;
-		chan.cread(&reply, sizeof(double)); //answer
+		activeChannel -> cwrite(buf, sizeof(datamsg)); // question
+		double reply = 0.0;
+		activeChannel -> cread(&reply, sizeof(double)); //answer
 		cout << "For person " << p << ", at time " << t << ", the value of ecg " << e << " is " << reply << endl;
 	}
 	//Input for the 1000 line 1 person case
-	else if(p != 1 && t == -1.0 && e == -1 && filename == "") {
+	else if(p != -1 && t == -1.0 && e == -1 && filename == "") {
 		//777 sets permissions for new directory in this case its everyone can access
-		mkdir("recieved", 0777);
+		mkdir("received", 0777);
 		//file we are told to write to
-		ofstream out("recieved/x1.csv", ios::binary);
+		ofstream fout("received/x1.csv", ios::binary);
 
 
 		for(int i = 0; i < 1000; i++) {
@@ -132,11 +131,49 @@ int main (int argc, char *argv[]) {
 			activeChannel->cwrite(buf, sizeof(datamsg));
 			double reply2 = 0.0;
 			activeChannel->cread(&reply2, sizeof(double));
-			out << (i/250.0) << "," << reply1 << "," << reply2 << "\n";
+			fout << (i/250.0) << "," << reply1 << "," << reply2 << "\n";
 		}
-		out.close();
+		fout.close();
 	}
-    
+    else if (filename != "") {
+        // Request file size first
+        filemsg fmsg(0, 0);  // offset=0, length=0  tells server we want file size
+        string fname = filename;
+        size_t len = sizeof(filemsg) + fname.size() + 1;
+        vector<char> sendbuf(len);
+        memcpy(sendbuf.data(), &fmsg, sizeof(filemsg));
+        strcpy(sendbuf.data() + sizeof(filemsg), fname.c_str());
+
+        activeChannel->cwrite(sendbuf.data(), len);
+        int64_t file_size;
+        activeChannel->cread(&file_size, sizeof(int64_t));
+
+        // Make sure recieved dir exists
+        mkdir("received", 0777);
+        string outpath = "received/" + fname.substr(fname.find_last_of("/\\") + 1);
+        ofstream fout(outpath, ios::binary);
+
+        // Send file in chunks of at most buffer
+    	int64_t remaining = file_size;
+    	int64_t offset = 0;
+        while (remaining > 0) {
+            int chunk = min((int64_t)buffer, remaining);
+            filemsg f(offset, chunk);
+            memcpy(sendbuf.data(), &f, sizeof(filemsg));
+            strcpy(sendbuf.data() + sizeof(filemsg), fname.c_str());
+
+            activeChannel->cwrite(sendbuf.data(), len);
+
+            vector<char> recvbuf(chunk);
+            activeChannel->cread(recvbuf.data(), chunk);
+            fout.write(recvbuf.data(), chunk);
+
+            offset += chunk;
+            remaining -= chunk;
+        }
+        fout.close();
+        cout << "File saved to " << outpath << endl;
+    }
 
 	
 	// closing the channel    
@@ -150,7 +187,7 @@ int main (int argc, char *argv[]) {
 	}
 	//also delete the control channel
     chan.cwrite(&m, sizeof(MESSAGE_TYPE));
-	int status;
+	int status = 0;
 	waitpid(pid, &status, 0); // wait for the child process to terminate
 
 	return 0;

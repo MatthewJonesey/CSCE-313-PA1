@@ -26,8 +26,10 @@ int main (int argc, char *argv[]) {
 	int e = -1;
 	
 	string filename = "";
-	int buffer = 257;
+	int buffer = 256;
+	bool hasm = false;
 	bool c = false;
+
 
 	while ((opt = getopt(argc, argv, "p:t:e:f:m:c")) != -1) {
 		switch (opt) {
@@ -45,6 +47,7 @@ int main (int argc, char *argv[]) {
 				break;
 			case 'm':
 				buffer = atoi (optarg);
+				hasm = true;
 				break;
 			case 'c':
 				c = true;
@@ -59,7 +62,7 @@ int main (int argc, char *argv[]) {
         // Child process: run the server
        
         // Build argv for exec
-		if(buffer == 257) {
+		if(hasm) {
 			char *args[2];
 			args[0] = (char*)"./server" ;
 			args[1] = nullptr;

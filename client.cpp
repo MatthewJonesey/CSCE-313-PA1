@@ -155,10 +155,9 @@ int main (int argc, char *argv[]) {
         ofstream fout(outpath, ios::binary);
 
         // Send file in chunks of at most buffer
-    	int64_t remaining = file_size;
     	int64_t offset = 0;
-        while (remaining > offset) {
-            int chunk = min((int64_t)buffer, remaining-offset);
+        while (offset < file_size) {
+            int chunk = (int) min((int64_t)buffer, file_size-offset);
             filemsg f(offset, chunk);
 			//File message changes so we have to change the length we use
 			int flen = sizeof(filemsg) + filename.size() + 1;
@@ -167,7 +166,7 @@ int main (int argc, char *argv[]) {
             memcpy(sendbuf2.data(), &f, sizeof(filemsg));
             strcpy(sendbuf2.data() + sizeof(filemsg), fname.c_str());
 
-            activeChannel->cwrite(sendbuf2.data(), flen);
+            activeChannel -> cwrite(sendbuf2.data(), flen);
 
             vector<char> recvbuf(chunk);
             activeChannel->cread(recvbuf.data(), chunk);

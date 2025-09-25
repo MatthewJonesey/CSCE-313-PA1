@@ -47,7 +47,6 @@ int main (int argc, char *argv[]) {
 				buffer = atoi (optarg);
 				break;
 			case 'c':
-
 				c = true;
 				break;
 		}
@@ -77,10 +76,7 @@ int main (int argc, char *argv[]) {
 		}
 	   _exit(1);
     } 
-	else if (pid < 0) {
-        perror("fork failed");
-        exit(1);
-    }
+
 	
 	//We have to accomadate multiple channels for this program we keep track
 	//of active with activeChannel
@@ -139,40 +135,42 @@ int main (int argc, char *argv[]) {
         // Request file size first
         filemsg fmsg(0, 0);  // offset=0, length=0  tells server we want file size
         string fname = filename;
-        size_t len = sizeof(filemsg) + fname.size() + 1;
+        int len = sizeof(filemsg) + fname.size() + 1;
         vector<char> sendbuf(len);
         memcpy(sendbuf.data(), &fmsg, sizeof(filemsg));
         strcpy(sendbuf.data() + sizeof(filemsg), fname.c_str());
 
         activeChannel->cwrite(sendbuf.data(), len);
-        int64_t file_size;
+        int64_t file_size = 0;
         activeChannel->cread(&file_size, sizeof(int64_t));
 
         // Make sure recieved dir exists
         mkdir("received", 0777);
-        string outpath = "received/" + fname.substr(fname.find_last_of("/\\") + 1);
+        string outpath = "received/" + fname;
         ofstream fout(outpath, ios::binary);
 
         // Send file in chunks of at most buffer
     	int64_t remaining = file_size;
     	int64_t offset = 0;
         while (remaining > 0) {
-            int chunk = min((int64_t)buffer, remaining);
+            int chunk = min((int64_t)buffer, remaining-offset);
             filemsg f(offset, chunk);
-            memcpy(sendbuf.data(), &f, sizeof(filemsg));
-            strcpy(sendbuf.data() + sizeof(filemsg), fname.c_str());
+			//File message changes so we have to change the length we use
+			int flen = sizeof(filemsg) + filename.size() + 1;
+			//Using vectors to avoid dealing with memory
+			vector<char> sendbuf2(flen);
+            memcpy(sendbuf2.data(), &f, sizeof(filemsg));
+            strcpy(sendbuf2.data() + sizeof(filemsg), fname.c_str());
 
-            activeChannel->cwrite(sendbuf.data(), len);
+            activeChannel->cwrite(sendbuf2.data(), len);
 
             vector<char> recvbuf(chunk);
             activeChannel->cread(recvbuf.data(), chunk);
             fout.write(recvbuf.data(), chunk);
 
             offset += chunk;
-            remaining -= chunk;
         }
         fout.close();
-        cout << "File saved to " << outpath << endl;
     }
 
 	

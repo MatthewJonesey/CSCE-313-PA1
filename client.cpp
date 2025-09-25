@@ -26,8 +26,9 @@ int main (int argc, char *argv[]) {
 	int e = -1;
 	
 	string filename = "";
-	int buffer = MAX_MESSAGE;
+	int buffer = 257;
 	bool c = false;
+
 	while ((opt = getopt(argc, argv, "p:t:e:f:m:c:")) != -1) {
 		switch (opt) {
 			case 'p':
@@ -58,7 +59,7 @@ int main (int argc, char *argv[]) {
         // Child process: run the server
        
         // Build argv for exec
-		if(buffer == MAX_MESSAGE) {
+		if(buffer == 257) {
 			char *args[2];
 			args[0] = (char*)"./server" ;
 			args[1] = nullptr;
@@ -67,9 +68,11 @@ int main (int argc, char *argv[]) {
 		else{
 			string bufstr = to_string(buffer);
 			char* args[4];
+			vector<char> adaptSize(bufstr.begin(), bufstr.end());
+			adaptSize.push_back('\0');
 			args[0] = (char*)"./server";
 			args[1] = (char*)"-m";
-			args[2] = (char*)bufstr.c_str(); 
+			args[2] = adaptSize.data(); 
 			args[3] = nullptr;
 			execvp(args[0], args);
 		}
@@ -136,26 +139,13 @@ int main (int argc, char *argv[]) {
     
 
 	
-	filemsg fm(0, 0);
-	string fname = filename;
-	
-	int len = sizeof(filemsg) + (fname.size() + 1);
-	char* buf2 = new char[len];
-	memcpy(buf2, &fm, sizeof(filemsg));
-	strcpy(buf2 + sizeof(filemsg), fname.c_str());
-	chan.cwrite(buf2, len);  // I want the file length;
-
-	delete[] buf2;
-
-	
-	
 	// closing the channel    
 
 
     MESSAGE_TYPE m = QUIT_MSG;
 	//If we made a new channel we close it
 	if(activeChannel != &chan){
-		chan.cwrite(&m, sizeof(MESSAGE_TYPE));
+		activeChannel -> cwrite(&m, sizeof(MESSAGE_TYPE));
 		delete activeChannel;
 	}
 	//also delete the control channel

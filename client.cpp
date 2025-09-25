@@ -62,8 +62,10 @@ int main (int argc, char *argv[]) {
 		if(buffer == 257) {
 			char *args[2];
 			args[0] = (char*)"./server" ;
-			args[1] = NULL;
+			args[1] = nullptr;
 			execvp(args[0], args);
+			perror("execvp");
+			_exit(1);
 		}
 		else{
 			string bufstr = to_string(buffer);
@@ -71,10 +73,12 @@ int main (int argc, char *argv[]) {
 			args[0] = (char*)"./server";
 			args[1] = (char*)"-m";
 			args[2] = (char*)bufstr.c_str(); 
-			args[3] = NULL;
+			args[3] = nullptr;
 			execvp(args[0], args);
+			perror("execvp");
+			_exit(1);
 		}
-	   _exit(1);
+	   
     } 
 
 	
@@ -87,6 +91,7 @@ int main (int argc, char *argv[]) {
 	if(c){
 		MESSAGE_TYPE request = NEWCHANNEL_MSG;
 		chan.cwrite(&request, sizeof(request));
+		memset(buf,0,sizeof(buf));
 		chan.cread(buf, sizeof(buf));
 		FIFORequestChannel *newChannel = new FIFORequestChannel(buf, FIFORequestChannel::CLIENT_SIDE);
 		activeChannel = newChannel;
@@ -152,7 +157,7 @@ int main (int argc, char *argv[]) {
         // Send file in chunks of at most buffer
     	int64_t remaining = file_size;
     	int64_t offset = 0;
-        while (remaining > 0) {
+        while (remaining > offset) {
             int chunk = min((int64_t)buffer, remaining-offset);
             filemsg f(offset, chunk);
 			//File message changes so we have to change the length we use
@@ -162,7 +167,7 @@ int main (int argc, char *argv[]) {
             memcpy(sendbuf2.data(), &f, sizeof(filemsg));
             strcpy(sendbuf2.data() + sizeof(filemsg), fname.c_str());
 
-            activeChannel->cwrite(sendbuf2.data(), len);
+            activeChannel->cwrite(sendbuf2.data(), flen);
 
             vector<char> recvbuf(chunk);
             activeChannel->cread(recvbuf.data(), chunk);

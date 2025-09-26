@@ -1,0 +1,25 @@
+Analysis of File Transfer Times vs File Size
+
+List of commands used
+F: stands for file size used for the six data points I created
+
+truncate -s FM BIMDC/testFM.bin
+diff BIMDC/testFM.bin received/testFM.bin
+time ./client -f testFM.bin
+
+Results:
+1 MB - 0.548 s
+10 MB - 3.146 s
+25 MB - 6.368 s
+50 MB - 11.137 s
+75 MB - 16.033 s
+100 MB - 35.908 s
+
+For plot see answer.png in README.md
+
+In the data we see an almost linear rise in file transfer time throughout the whole process except with the 100 MB file.
+The main bottleneck in this case is not the speed of the processors, but rather the named PIPE system we use. The max
+chunk size we set for each message is 256 bits so for these especially large files we create many chunks, each of which
+has to switch between the client and server processes to tranfer data. This is most apparent in the 100 MB file where our 
+runtime slows down more than the rest because we are creating thousands of chunks each of which is using the FIFO 
+system to communicate between the server and client vastly slowing down our runtime.
